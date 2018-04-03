@@ -19,7 +19,7 @@ function toggleTouchID(enable) {
     method.implementation = originalImplementation
     originalImplementation = null
 
-    echo(subject, 'enable', { reason: 're-eanbled touch id' })
+    echo(subject, 'enable', 're-eanbled touch id')
   } else if (!originalImplementation && !enable) {
     originalImplementation = method.implementation
     method.implementation = ObjC.implement(method, (self, sel, policy, reason, reply) => {
@@ -29,7 +29,7 @@ function toggleTouchID(enable) {
       callback.implementation(1, null)
     })
 
-    echo(subject, 'off', { reason: 'successfully disabled touch id' })
+    echo(subject, 'off', 'successfully disabled touch id')
   } else {
     throw new Error('invalid on/off argument')
   }
