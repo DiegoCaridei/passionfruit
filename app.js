@@ -18,6 +18,7 @@ const Router = require('koa-router')
 const { FridaUtil, serializeDevice } = require('./lib/utils')
 const channels = require('./lib/channels.js')
 const { KnownError, InvalidDeviceError } = require('./lib/error')
+const { DataBase } = require('./lib/db')
 
 
 const app = new Koa()
@@ -29,22 +30,28 @@ Buffer.prototype.toJSON = function() {
   return this.toString('base64')
 }
 
+const db = new DataBase()
+
 router
   .get('/devices', async (ctx) => {
-    const list = await frida.enumerateDevices()
+    const devices = await frida.enumerateDevices()
+    const list = devices.filter(FridaUtil.isUSB)
     ctx.body = {
       version: FRIDA_VERSION,
       list: list.filter(FridaUtil.isUSB).map(serializeDevice),
     }
+    db.saveDevices(list)
   })
   .get('/device/:device/apps', async (ctx) => {
     const id = ctx.params.device
     const dev = await FridaUtil.getDevice(id)
     try {
-      ctx.body = await dev.enumerateApplications()
+      const apps = await dev.enumerateApplications()
+      ctx.body = apps
+      db.saveApps(apps, id)
     } catch (ex) {
-      throw ex.message.indexOf('Unable to connect to remote frida-server') === 0 ? 
-        new InvalidDeviceError(id) : ex
+      throw ex.message.indexOf('Unable to connect to remote frida-server') === 0
+        ? new InvalidDeviceError(id) : ex
     }
   })
   .post('/device/spawn', async (ctx) => {
@@ -97,21 +104,30 @@ if (process.env.NODE_ENV === 'development') {
   app.use(logger())
 }
 
-console.info(`listening on http://${host}:${port}`.green)
-const server = http.createServer(app.callback())
-channels.attach(server)
-server.listen(port, host)
+async function main() {
+  await db.connect()
 
-
-process.on('unhandledRejection', (err) => {
-  console.error('An unhandledRejection occurred: ')
-  console.error(`Rejection: ${err}`)
-  console.error(err.stack)
-
-  channels.broadcast('unhandledRejection', {
-    err: err.toString(),
-    stack: err.stack,
+  process.on('exit', () => {
+    db.disconnect()
   })
-})
 
-module.exports = app
+  process.on('unhandledRejection', (err) => {
+    console.error('An unhandledRejection occurred: ')
+    console.error(`Rejection: ${err}`)
+    console.error(err.stack)
+
+    channels.broadcast('unhandledRejection', {
+      err: err.toString(),
+      stack: err.stack,
+    })
+  })
+
+  console.info('environment:', process.env.NODE_ENV.yellow)
+  console.info(`listening on http://${host}:${port}`.green)
+  const server = http.createServer(app.callback())
+  channels.attach(server)
+
+  server.listen(port, host)
+}
+
+main()

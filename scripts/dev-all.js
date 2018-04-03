@@ -18,7 +18,7 @@ const TAG_SERVER = '[Server]'.magenta
 nodemon({
   script: 'app.js',
   ext: 'js json',
-  watch: ['lib', 'app.js'],
+  watch: ['lib', 'app.js', 'scripts'],
 })
 
 nodemon
@@ -42,7 +42,7 @@ webpack.on('exit', () => {
   process.exit()
 })
 
-process.on('SIGINT', () => {
+process.on('exit', () => {
   if (!webpack.killed)
     webpack.kill()
 })
