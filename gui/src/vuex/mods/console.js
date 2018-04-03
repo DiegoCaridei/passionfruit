@@ -13,16 +13,16 @@ export const mutations = {
   [types.CONSOLE_RUNNING](state, on) {
     state.logging = on
   },
-  [types.CONSOLE_APPEND](state, item) {
+  [types.CONSOLE_APPEND](state, items) {
     if (!state.logging)
       return
 
-    state.list.unshift(item)
-    if (state.list.length > LIMIT)
-      state.list.pop()
+    const overflow = state.list.length + items.length - LIMIT
+    state.list.splice(state.list.length - overflow, overflow)
+    state.list.unshift(...items)
 
     if (!state.active)
-      state.unread++
+      state.unread += items.length
   },
   [types.CONSOLE_ACTIVE](state, active) {
     state.active = active
