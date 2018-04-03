@@ -36,7 +36,7 @@ function hook(library, func, signature) {
         pretty[i] = readable(signature.args[i], arg)
       }
 
-      const expr = `${lib}!${func}(${args.join(', ')})`.substr(0, 100)
+      const expr = `${lib}!${func}(${pretty.join(', ')})`.substr(0, 100)
       echo.call(this, subject, 'call', { args: pretty, lib, func, expr })
     },
     onLeave(retVal) {
@@ -96,21 +96,21 @@ function swizzle(clazz, sel, traceResult = true) {
 
   const intercept = Interceptor.attach(method.implementation, {
     onEnter(args) {
-      const readableArgs = []
+      const pretty = []
       for (let i = 2; i < method.argumentTypes.length; i++) {
         if (method.argumentTypes[i] === 'pointer') {
           try {
             const obj = ObjC.Object(args[i]).toString()
-            readableArgs.push(obj)
+            pretty.push(obj)
           } catch (ex) {
-            readableArgs.push(args[i])
+            pretty.push(args[i])
           }
         } else {
-          readableArgs.push(args[i])
+          pretty.push(args[i])
         }
       }
-      const expr = `${clazz}!${sel}(${readableArgs.join(', ')})`.substr(0, 100)
-      echo.call(this, subject, 'objc-call', { args: readableArgs, clazz, sel, expr })
+      const expr = `${clazz}!${sel}(${pretty.join(', ')})`.substr(0, 100)
+      echo.call(this, subject, 'objc-call', { args: pretty, clazz, sel, expr })
     },
     onLeave,
   })
