@@ -23,7 +23,9 @@
           </b-taglist>
         </span>
         <span class="expression">
-          <code>{{ item | expr }}</code>
+          <code>{{ item.data | expr }}</code>
+          <!-- todo: click to open -->
+          <!-- <data-field v-if="item.data.expr" :field="{ key: '', value: item.data }" :depth="0"></data-field> -->
         </span>
 
         <b-dropdown position="is-bottom-left" v-if="item.backtrace">
@@ -55,7 +57,10 @@ import {
   CONSOLE_LIST, CONSOLE_UNREAD, CONSOLE_RUNNING
 } from '~/vuex/types'
 
+import DataField from '~/components/DataField.vue'
+
 export default {
+  components: { DataField },
   computed: {
     logging: {
       get() {
@@ -76,19 +81,7 @@ export default {
     }
   },
   filters: {
-    expr(item) {
-      let router = {
-        'objc-call': () => `${item.clazz}!${item.sel}(${item.args.join(', ')})`,
-        'objc-return': () => `=${item.ret}`,
-        'call': () => `${item.lib}!${item.func}(${item.args.join(', ')})`,
-        'return': () => `=${item.ret}`,
-      }
-      if (router.hasOwnProperty(item.event))
-        return router[item.event].call(null)
-      else
-        return item.arguments
-      // return '!ERR: Unknown type: ' + item.event
-    },
+    expr: data => data.expr || data,
     datetime: ts => new Date(ts).toLocaleString('en-US', {
       year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', second: '2-digit',

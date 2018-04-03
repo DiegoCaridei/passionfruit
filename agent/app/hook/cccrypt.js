@@ -1,3 +1,5 @@
+const { echo } = require('../lib/utils')
+
 const btoa = buf => Duktape.enc('base64', buf)
 
 const CCOperation = ['kCCEncrypt', 'kCCDecrypt']
@@ -11,7 +13,7 @@ const CCAlgorithm = [
 ]
 
 const subject = 'crypto'
-const now = () => (new Date()).getTime()
+
 
 const handlers = {
   // CCCryptorStatus
@@ -31,28 +33,20 @@ const handlers = {
       const strKey = btoa(Memory.readByteArray(key, keyLength))
       const strIV = iv === 0 ? 'null' : btoa(Memory.readByteArray(iv, CCAlgorithm[alg].blocksize))
 
-      const time = now()
-      const backtrace = Thread.backtrace(this.context, Backtracer.ACCURATE)
-        .map(DebugSymbol.fromAddress).filter(e => e.name)
-
       let operation = CCOperation[op]
       if (operation === 'kCCEncrypt')
         operation = 'encrypt'
       else if (operation === 'kCCDecrypt')
         operation = 'decrypt'
 
-      send({
-        subject,
+      echo.call(this, subject, operation, {
         func: 'CCCryptorCreate',
-        event: operation,
         arguments: {
           operation,
           algorithm: CCAlgorithm[alg].name,
           key: strKey,
           iv: strIV,
         },
-        time,
-        backtrace,
       })
     },
   },
@@ -86,10 +80,6 @@ const handlers = {
 
       const strDataIn = btoa(Memory.readByteArray(dataIn, dataInLength))
 
-      const time = now()
-      const backtrace = Thread.backtrace(this.context, Backtracer.ACCURATE)
-        .map(DebugSymbol.fromAddress).filter(e => e.name)
-
       let operation = CCOperation[op]
       if (operation === 'kCCEncrypt')
         operation = 'encrypt'
@@ -97,9 +87,9 @@ const handlers = {
         operation = 'decrypt'
 
       this.operation = operation
-      send({
-        subject,
-        event: operation,
+
+      echo.call(this, subject, operation, {
+        func: 'CCCrypt',
         arguments: {
           operation,
           algorithm: CCAlgorithm[alg].name,
@@ -107,27 +97,17 @@ const handlers = {
           iv: strIV,
           in: strDataIn,
         },
-        time,
-        backtrace,
       })
     },
     onLeave(retVal) {
       if (retVal.toInt32() !== 0)
         return
 
-      const time = now()
       const { dataOut, dataOutMoved, operation } = this
       const len = Memory.readUInt(dataOutMoved)
       const strDataOut = btoa(Memory.readByteArray(dataOut, len))
 
-      send({
-        subject,
-        event: operation,
-        arguments: {
-          out: strDataOut,
-        },
-        time,
-      })
+      echo(subject, operation, { out: strDataOut })
     },
   },
 }

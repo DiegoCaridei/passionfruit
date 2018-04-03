@@ -4,12 +4,13 @@
 
 require('./cccrypt')
 
+const { echo } = require('../lib/utils')
+
 const subject = 'hook'
 
 const hooked = {}
 const swizzled = {}
 
-const now = () => (new Date()).getTime()
 const readable = (type, arg) => (type === 'char *' ? Memory.readUtf8String(arg) : arg)
 
 
@@ -29,44 +30,20 @@ function hook(library, func, signature) {
 
   const intercept = Interceptor.attach(funcPtr, {
     onEnter(args) {
-      const time = now()
       const pretty = []
       for (let i = 0; i < signature.args.length; i++) {
         const arg = ptr(args[i])
         pretty[i] = readable(signature.args[i], arg)
       }
 
-      const backtrace = Thread.backtrace(this.context, Backtracer.ACCURATE)
-        .map(DebugSymbol.fromAddress).filter(e => e.name)
-
-      this.backtrace = backtrace
-
-      send({
-        subject,
-        event: 'call',
-        args: pretty,
-        lib,
-        func,
-        backtrace,
-        time,
-      })
+      const expr = `${lib}!${func}(${args.join(', ')})`.substr(0, 100)
+      echo.call(this, subject, 'call', { args: pretty, lib, func, expr })
     },
     onLeave(retVal) {
-      if (!signature.ret)
-        return
-
-      const time = now()
+      if (!signature.ret) return
       const ret = readable(signature.ret, retVal)
-
-      send({
-        subject,
-        event: 'return',
-        lib,
-        func,
-        time,
-        backtrace: this.backtrace,
-        ret,
-      })
+      const expr = `=${ret}`
+      echo.call(this, subject, 'return', { lib, func, ret, expr })
     },
   })
 
@@ -106,27 +83,19 @@ function swizzle(clazz, sel, traceResult = true) {
   let onLeave
   if (traceResult) {
     onLeave = (retVal) => {
-      const time = now()
       let ret = retVal
       try {
         ret = new ObjC.Object(ret).toString()
       } catch (ignored) {
         //
       }
-      send({
-        subject,
-        event: 'objc-return',
-        clazz,
-        sel,
-        ret,
-        time,
-      })
+      const expr = `=${ret}`
+      echo.call(this, subject, 'objc-return', { clazz, sel, ret, expr })
     }
   }
 
   const intercept = Interceptor.attach(method.implementation, {
     onEnter(args) {
-      const time = now()
       const readableArgs = []
       for (let i = 2; i < method.argumentTypes.length; i++) {
         if (method.argumentTypes[i] === 'pointer') {
@@ -140,18 +109,8 @@ function swizzle(clazz, sel, traceResult = true) {
           readableArgs.push(args[i])
         }
       }
-
-      // Objective C's backtrace does not contain valuable information,
-      // so I removed it
-
-      send({
-        subject,
-        event: 'objc-call',
-        args: readableArgs,
-        clazz,
-        sel,
-        time,
-      })
+      const expr = `${clazz}!${sel}(${readableArgs.join(', ')})`.substr(0, 100)
+      echo.call(this, subject, 'objc-call', { args: readableArgs, clazz, sel, expr })
     },
     onLeave,
   })

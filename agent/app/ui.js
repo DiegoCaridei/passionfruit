@@ -1,3 +1,5 @@
+import { echo } from './lib/utils'
+
 const { UIDebuggingInformationOverlay, LAContext, UIWindow } = ObjC.classes
 
 function dumpWindow() {
@@ -17,33 +19,17 @@ function toggleTouchID(enable) {
     method.implementation = originalImplementation
     originalImplementation = null
 
-    send({
-      subject,
-      event: 'on',
-      reason: 're-eanbled touch id',
-      date: new Date(),
-    })
+    echo(subject, 'enable', { reason: 're-eanbled touch id' })
   } else if (!originalImplementation && !enable) {
     originalImplementation = method.implementation
     method.implementation = ObjC.implement(method, (self, sel, policy, reason, reply) => {
-      send({
-        subject,
-        event: 'request',
-        reason,
-        date: new Date(),
-      })
-
+      echo(subject, 'request')
       // dismiss the dialog
       const callback = new ObjC.Block(ptr(reply))
       callback.implementation(1, null)
     })
 
-    send({
-      subject,
-      event: 'off',
-      reason: 'successfully disabled touch id',
-      date: new Date(),
-    })
+    echo(subject, 'off', { reason: 'successfully disabled touch id' })
   } else {
     throw new Error('invalid on/off argument')
   }

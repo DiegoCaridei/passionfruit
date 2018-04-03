@@ -1,3 +1,5 @@
+import { echo } from './lib/utils'
+
 const paths = `/Applications/Cydia.app
 /Applications/FakeCarrier.app
 /Applications/Icy.app
@@ -39,15 +41,9 @@ export default function bypassJailbreak() {
       if (!args[0])
         return
 
-      const backtrace = Thread.backtrace(this.context, Backtracer.ACCURATE)
-        .map(DebugSymbol.fromAddress).filter(e => e.name)
       const path = Memory.readUtf8String(args[0])
       if (paths.indexOf(path) > -1) {
-        send({
-          subject,
-          time: new Date().getTime(),
-          event: 'detect',
-          backtrace,
+        echo.call(this, subject, 'detect', {
           arguments: {
             path,
             method: 'open',
@@ -64,19 +60,8 @@ export default function bypassJailbreak() {
         return
 
       const path = Memory.readUtf8String(args[0])
-      const backtrace = Thread.backtrace(this.context, Backtracer.ACCURATE)
-        .map(DebugSymbol.fromAddress).filter(e => e.name)
       if (paths.indexOf(path) > -1) {
-        send({
-          subject,
-          time: new Date().getTime(),
-          event: 'detect',
-          backtrace,
-          arguments: {
-            path,
-            method: 'stat',
-          },
-        })
+        echo.call(subject, 'detect', { arguments: { path, method: 'stat' } })
         args[0] = NULL
       }
     },
@@ -85,18 +70,8 @@ export default function bypassJailbreak() {
   Interceptor.attach(Module.findExportByName(null, 'getenv'), {
     onEnter(args) {
       const key = Memory.readUtf8String(args[0])
-      const backtrace = Thread.backtrace(this.context, Backtracer.ACCURATE)
-        .map(DebugSymbol.fromAddress).filter(e => e.name)
       if (key === 'DYLD_INSERT_LIBRARIES') {
-        send({
-          subject,
-          time: new Date().getTime(),
-          event: 'detect',
-          backtrace,
-          arguments: {
-            env: 'DYLD_INSERT_LIBRARIES',
-          },
-        })
+        echo.call(this, subject, 'detect', { arguments: { func: 'getenv', env: 'DYLD_INSERT_LIBRARIES' }})
         args[0] = NULL
       }
     },
@@ -104,15 +79,17 @@ export default function bypassJailbreak() {
 
   Interceptor.attach(Module.findExportByName(null, '_dyld_get_image_name'), {
     onLeave(retVal) {
-      if (Memory.readUtf8String(retVal).indexOf('MobileSubstrate') > -1)
-        retVal.replace(ptr(0x00))
+      if (Memory.readUtf8String(retVal).indexOf('MobileSubstrate') > -1) {
+        echo.call(this, subject, 'detect', { func: '_dyld_get_image_name' })
+        retVal.replace(NULL)
+      }
     },
   })
 
   Interceptor.attach(Module.findExportByName(null, 'fork'), {
     onLeave(retVal) {
+      echo.call(this, subject, 'detect', { func: 'fork' })
       retVal.replace(ptr(-1))
-      // todo: send
     },
   })
 
@@ -124,25 +101,15 @@ export default function bypassJailbreak() {
         return
 
       const url = ObjC.Object(args[2]).toString()
-      const backtrace = Thread.backtrace(this.context, Backtracer.ACCURATE)
-        .map(DebugSymbol.fromAddress).filter(e => e.name)
       if (/^cydia:\/\//i.exec(url)) {
         args[2] = NSURL.URLWithString_('invalid://')
         this.shouldOverride = true
-        send({
-          subject,
-          time: new Date().getTime(),
-          event: 'detect',
-          backtrace,
-          arguments: {
-            url,
-          },
-        })
+        echo.call(this, subject, 'detect', { func: 'canOpenURL:', url })
       }
     },
     onLeave(retVal) {
       if (this.shouldOverride)
-        retVal.replace(ptr(0))
+        retVal.replace(NULL)
     },
   })
 
@@ -152,24 +119,14 @@ export default function bypassJailbreak() {
         return
 
       const path = new ObjC.Object(args[2]).toString()
-      const backtrace = Thread.backtrace(this.context, Backtracer.ACCURATE)
-        .map(DebugSymbol.fromAddress).filter(e => e.name)
       if (paths.indexOf(path) > -1) {
-        send({
-          subject,
-          time: new Date().getTime(),
-          event: 'detect',
-          backtrace,
-          arguments: {
-            path,
-          },
-        })
+        echo.call(this, 'detect', { func: 'fileExistsAtPath:', path })
         this.shouldOverride = true
       }
     },
     onLeave(retVal) {
       if (this.shouldOverride)
-        retVal.replace(ptr('0x00'))
+        retVal.replace(NULL)
     },
   })
 
@@ -179,18 +136,8 @@ export default function bypassJailbreak() {
         return
 
       const path = ObjC.Object(args[2]).toString()
-      const backtrace = Thread.backtrace(this.context, Backtracer.ACCURATE)
-        .map(DebugSymbol.fromAddress).filter(e => e.name)
       if (path.match(/^\/private/)) {
-        send({
-          subject,
-          time: new Date().getTime(),
-          event: 'detect',
-          backtrace,
-          arguments: {
-            path,
-          },
-        })
+        echo.call(this, subject, 'detect', { func: 'writeToFile:', path })
         this.shouldOverride = true
         this.error = args[5]
       }
