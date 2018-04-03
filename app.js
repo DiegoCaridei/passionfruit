@@ -18,7 +18,7 @@ const Router = require('koa-router')
 const { FridaUtil, serializeDevice } = require('./lib/utils')
 const channels = require('./lib/channels.js')
 const { KnownError, InvalidDeviceError } = require('./lib/error')
-const { DataBase } = require('./lib/db')
+const { getDatabase } = require('./lib/db')
 
 
 const app = new Koa()
@@ -30,7 +30,7 @@ Buffer.prototype.toJSON = function() {
   return this.toString('base64')
 }
 
-const db = new DataBase()
+const db = getDatabase()
 
 router
   .get('/devices', async (ctx) => {
@@ -106,10 +106,6 @@ if (process.env.NODE_ENV === 'development') {
 
 async function main() {
   await db.connect()
-
-  process.on('exit', () => {
-    db.disconnect()
-  })
 
   process.on('unhandledRejection', (err) => {
     console.error('An unhandledRejection occurred: ')
