@@ -71,40 +71,33 @@ export default {
         return result
       }
 
-      return expand('root', this.content)
+      return expand('', this.content)
     }
   },
   methods: {
     updateTree(root, keyword) {
-      function match(haystack) {
-        if (!haystack)
-          return false
-
-        return `${haystack}`.toLowerCase().indexOf(keyword.toLowerCase()) > -1
+      function match(text) {
+        if (!text) return false
+        const haystack = text.toString().toLowerCase()
+        const needle = keyword.toLowerCase()
+        return haystack.indexOf(needle) > -1
       }
 
-      function filter(node, isRoot) {
-        const cow = () => {
-          if (!node.children)
-            return node
-          
-          const children = node.children.map(child => filter(child, false)).filter(child => child)
-          return Object.assign({}, node, { children })
-        }
-
-        if (isRoot)
-          return cow()
-
-        if (node.val && match(node.val))
+      function visit(node) {
+        if (match(node.name) || (node.val && match(node.val)))
           return node
 
-        if (match(node.name)) 
-          return cow()
-        
-        return undefined
+        if (node.children) {
+          const children = node.children.map(visit).filter(child => child)
+          if (children.length)
+            return Object.assign({}, node, { children })
+        }
       }
 
-      this.tree = (keyword && keyword.length) ? filter(root, true) : root
+      if (keyword && keyword.length)
+        this.tree = visit(root) || {}
+      else
+        this.tree = root
     },
     expandAll() {
       this.$refs.tree.toggleAll(true)
