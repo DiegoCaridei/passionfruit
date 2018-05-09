@@ -22,7 +22,6 @@ require('./pasteboard') // monitor pasteboard
 setTimeout(() => {
   Module.ensureInitialized('Foundation')
 
-  toggleTouchID(false) // try bypass jailbreak
   bypassJailbreak(true)
 
   // todo: common function template
@@ -35,6 +34,13 @@ setTimeout(() => {
 
   swizzle('NSURL', 'URLWithString_', false)
   swizzle('NSString', 'stringWithContentsOfFile_usedEncoding_error_')
+
+  try {
+    // try to bypass jailbreak
+    toggleTouchID(false)
+  } catch (ignored) {
+    //
+  }
 }, 1000)
 
 rpc.exports = {
