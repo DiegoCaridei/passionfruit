@@ -34,7 +34,7 @@
     "lint:server": "eslint *.js && eslint lib",
     "lint:frontend": "eslint gui/src",
     "dev": "node scripts/dev-all.js",
-    "postinstall": "node scripts/",
+    "postinstall": "node scripts/post-install.js",
     "compile": "node scripts/compile.js compile",
     "watch": "node scripts/compile.js watch",
     "start": "cross-env NODE_ENV=development nodemon ."
