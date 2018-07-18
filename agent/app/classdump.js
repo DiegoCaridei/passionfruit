@@ -20,7 +20,8 @@ function getClassesFromModule(path) {
 
 function getOwnModules() {
   function normalize(path) {
-    return path.replace(/^\/private\/var\//, '/var/')
+    return ObjC.classes.NSString.stringWithString_(path)
+      .stringByStandardizingPath().toString()
   }
 
   const bundle = normalize(ObjC.classes.NSBundle.mainBundle().bundlePath().toString())
